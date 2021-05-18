@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "coco-huic",
+  "private_key_id": "eb709454549bf561f18794608460dc87cd7e82c7",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC/nZcpFIGVCUhG\nrDuXaWeYwN9RbnamDBqk9fPvKL+ghB1OY4HOAB7DodXSFrGh2k3kQ6Pk0+VlHOBo\n//+lNZ9TrPy3MzJutHBtYnq9T54qoqxTE5V5HbivxkBUtZLC8XyHtH+SarCHpx4U\nrD6maz/sLanjzJAm09rzHU3P+vCCfUA5jcgyGFUFPG8YVgZE6Ob/vcXkzcXxbYmE\nCpL+i/3c0kX4ZYaTb55ohibrQ0n2QMd4+d5rgC8hVlgSbbVxN/MUpjrZTCWIp8R2\nwnmzEs6d3XSK1R6lw7i1H0s/OmDprwhbP8Xxt/bk+WgqaMq1laUHwHFAgILKekQ1\noXfqoUAZAgMBAAECggEAE4aFTj2AMjB8Hx4oLmF3xIQ23WSSY5DihYJoj9YeUhwp\no6try+g4OlAl6olpzWfiPbXkyrRgRkGUiS6OSDFNdyiD/KO+FQjUV1khz7kAEYZ6\nZTbJfvTX39V7CFwTme4jS0LJ0yDbCd+uJtt3FjHh6s5WZwJD2CkIwR2bKGvWO+hG\nmMkkMhvFCu7MNVlSNhWt5Z4hgCUznzhZxnY7X3/weYNmVIPjeXmuQWB/4hbVX3az\nDzrqg7l+i395LJZV0X1pPvctUYVNV85WHrUVh7kYWiBxmvb7GIGgC+09tOTyN2zm\no5JDlctgHWgPU7hcWRijwbyo5PgLNGErRTXvlCBxHwKBgQDpH/kFEvUai5lP/EkN\nkuzO4O/ehHDojVWWictU0wvwm4Ms942ZQdnt3AnIvsPjvoNpDKJ4ZE+IQ22eGozQ\nVBaUGwAeyA/l7ZM0h7mtgcYht9uWu6AsLZeuUNMO/XVzH5Zyc2QFO8rs4lvpy/Cj\nIkh5SporacVONoagS2GwWvApmwKBgQDSauqckuATD2amm5lflKGvOjsrhF6jGDTQ\nkTmH8oYqwT2FbXKeDKkuEiIryxbghfn0Y1V49Ad26veriIMIHovafDrSR6IEcI+p\nWpJ9fN0R38kuUGUjC5oe5Fw4zTp5todKlKiQjf8PO2MqhAXg8mbhHSqRS0msR0UH\ntyrwvGHCWwKBgQDZtGQG2wdN/OP1kDJgnL7NC7613JTcd3BgHtploplZ3sCHc78m\nShrMSFpSv+OLgVSS+5uWNocXR3DM3xp1SrGzKevY0xgVruFzgvRhFfoDbwGAKEOS\nPhmSTiRrsULHec4zn5LeWFJPGaygDzXwAooPyx1iQWpiegULGJpn6OSy1QKBgQCI\nBR9mWbfJ+nG0D+/EjrM6L91iEy6OJa62iLp0/Dzo1IQthYPLUYnnw0cdoipGt7TN\n24y8JJvSrq+tzhBOJljnwtjPaAj+77ielHMP9bB+xngpnUTTs8NMZviKq3g6h9jL\nSG/zCiewNAa1zCR0tp30tcL3q4CTgnrIMwrqFgzn8wKBgQCttO+/XLlTKSzdy5PS\nxuE38GfPQYS+x/vXBmfBcQfb1+1j+2RMr4zF7VgFrOyhHiDFt+8o0kabNe2sdmrk\niKSlWSjD+muSHs2/+0lk6CH11/g0ZuFuikOoeD2ZJlg6t2p5awzD4vrxhv+4BQ1E\nW0JcS/Qb21nPu3OMzhjTkxB3ig==\n-----END PRIVATE KEY-----\n",
+  "client_email": "coco-2021@coco-huic.iam.gserviceaccount.com",
+  "client_id": "102408498836047091686",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/coco-2021%40coco-huic.iam.gserviceaccount.com"
+}
