@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import jsonify
 from flask_restplus import Namespace, Resource, fields, reqparse
+from collections import OrderedDict
 
 SendMessage = Namespace('send message', description='Send message to DialogFlow')
 
@@ -28,6 +29,8 @@ class PostWebhook(Resource):
         args = parser.parse_args()
         self.__session_id = args['session_id']
         self.__message = args['message']
+        self.__parameter = {}
+        self.__fulfillment_text = ""
 
     def detect_intent_texts(self, project_id, session_id, text, language_code):
         from google.cloud import dialogflow
@@ -42,7 +45,9 @@ class PostWebhook(Resource):
             query_input = dialogflow.QueryInput(text=text_input)
             response = session_client.detect_intent(
                 session=session, query_input=query_input)
-
+            print(response)
+            print(dict(response.query_result.parameters))
+            self.__parameter = dict(response.query_result.parameters)
             print("Query text: {}".format(response.query_result.query_text))
             print(
                 "Detected intent: {} (confidence: {})\n".format(
@@ -51,12 +56,21 @@ class PostWebhook(Resource):
                 )
             )
             print("Fulfillment text: {}\n".format(response.query_result.fulfillment_text))
+            self.__fulfillment_text = response.query_result.fulfillment_text
 
-            return response.query_result.fulfillment_text
+            return_json = OrderedDict()
+
+            return_json["message"] = response.query_result.fulfillment_text
+            return_json["parameter"] = dict(response.query_result.parameters)
+            return_json["intent_display_name"] = response.query_result.intent.display_name
+            return_json["intent_detection_confidence"] = response.query_result.intent_detection_confidence
+
+            return return_json
 
     @SendMessage.expect(model_send_message)
     def post(self):
         project_id = 'coco-huic'
-        fulfillment_text = self.detect_intent_texts(project_id, self.__session_id, self.__message, 'ko')
-        response_text = {"message": fulfillment_text}
-        return jsonify(response_text)
+        return_json = self.detect_intent_texts(project_id, self.__session_id, self.__message, 'ko')
+
+
+        return return_json
