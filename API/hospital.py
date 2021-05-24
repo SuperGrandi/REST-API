@@ -39,7 +39,8 @@ def get_hospital_info(hospital_id):
     return xmltodict.parse(res.text)
 
 
-def get_hospital_by_location(lat, lon, dept_code, range, emergency, item_num=None):
+def get_hospital_by_location(lat, lon, dept_code, emergency, hos_count):
+    count = 0
     start = time.time()
     res = requests.get(
         url="http://apis.data.go.kr/B552657/HsptlAsembySearchService/getHsptlMdcncLcinfoInqire",
@@ -47,7 +48,7 @@ def get_hospital_by_location(lat, lon, dept_code, range, emergency, item_num=Non
             'serviceKey': 'LV05BMRXXZ0XCU+yhvN+kdVE/LORIjoi1sFvkiZf007DUxd04F77IbYEfVySm62z3JKNyFz30EKI2K3rlORW0g==',
             "WGS84_LAT": lat,  # 위도
             "WGS84_LON": lon,  # 경도
-            "numOfRows": 200,
+            "numOfRows": 10,
         }
     )
     dept_code_dict = {
@@ -59,6 +60,7 @@ def get_hospital_by_location(lat, lon, dept_code, range, emergency, item_num=Non
         "D017": "마취통증의학과", "D018": "영상의학과", "D019": "치료방사선과", "D020": "임상병리과", "D021": "해부병리과", "D022": "가정의학과",
         "D023": "핵의학과", "D024": "응급의학과", "D026": "치과", "D034": "구강악안면외과"
     }
+
     dept_name = dept_code_dict[dept_code]
 
     print("Parse Data")
@@ -74,12 +76,11 @@ def get_hospital_by_location(lat, lon, dept_code, range, emergency, item_num=Non
     result['items'] = []
     for item in items:
         data = {}
-
         if item['dutyDiv'] in ['G', 'R']:
             continue
 
-        if int(range) < int(float(item['distance']) * 1000):
-            break
+        #if int(range) < int(float(item['distance']) * 1000):
+            #break
 
         hos_info = get_hospital_info(item['hpid'])
         # print(hos_info)
@@ -87,6 +88,7 @@ def get_hospital_by_location(lat, lon, dept_code, range, emergency, item_num=Non
         hos_info = hos_info["response"]["body"]['items']['item']['dgidIdName'].split(',')
 
         if dept_name in hos_info:
+            count += 1
             data['name'] = item['dutyName']
             data['div_name'] = item['dutyDivName']
             data['address'] = item['dutyAddr']
@@ -132,6 +134,9 @@ def get_hospital_by_location(lat, lon, dept_code, range, emergency, item_num=Non
 
             if emergency == data['er_yn']:
                 result['items'].append(data)
+
+        if hos_count == count:
+            break
 
     result['time'] = time.time() - start
 
@@ -180,5 +185,5 @@ class GetHospital(Resource):
     @Hospital.doc(
         params={'emergency': {'description': '응급실 여부(Y/N)', 'enum': ['Y', 'N'], 'required': True, 'default': 'N'}})
     def get(self):
-        result = get_hospital_by_location(self.lat, self.lon, self.dept_code, self.range, self.emergency)
+        result = get_hospital_by_location(self.lat, self.lon, self.dept_code, self.emergency, 10)
         return result, 200
