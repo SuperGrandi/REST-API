@@ -3,7 +3,7 @@ from flask import Flask, Blueprint
 from flask_restplus import Api
 from API.hospital import Hospital
 from API.sendMessage import SendMessage
-
+from API.dialogue import Dialogue
 app = Flask(__name__)
 app.config['CORS_HEADERS'] = 'Content-Type'
 app.config['JSON_AS_ASCII'] = False
@@ -23,7 +23,7 @@ app.register_blueprint(blueprint)
 
 api.add_namespace(Hospital, '/hospital')
 api.add_namespace(SendMessage, '/sendMessage')
-
+api.add_namespace(Dialogue, '/dialogue')
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5000)
