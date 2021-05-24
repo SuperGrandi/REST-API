@@ -87,4 +87,3 @@ class PostSendMessage(Resource):
             project_id = 'coco-huic'
             return_json = self.detect_intent_texts(project_id, self.__session_id, self.__message, 'ko')
 
-        return return_json
