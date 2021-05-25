@@ -3,11 +3,11 @@ from flask import jsonify
 from flask_restplus import Namespace, Resource, fields, reqparse
 from collections import OrderedDict
 from database import Database
-import pymysql
 
 Dialogue = Namespace('dialog', description='대화를 통한 진료과 도출')
 
 response_model_dialogue = Dialogue.model('Dialogue Model', {
+    'session_id': fields.String(description='세션ID'),
     'message': fields.String(description='코코가 할 말'),
     'part_code': fields.String(description='인식한 부위의 코드'),
     'part_name': fields.String(description='인식한 부위의 이름'),
@@ -15,7 +15,8 @@ response_model_dialogue = Dialogue.model('Dialogue Model', {
 })
 
 model_dialogue = Dialogue.model("", {
-    'message': fields.String(description='사용자 메시지'),
+    'session_id': fields.String(description='세션ID'),
+    'message': fields.String(description='사용자 메시지')
 })
 
 coco_db = Database()
@@ -28,36 +29,105 @@ class PostDialogue(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('message', type=str, required=True)
 
+        args = parser.parse_args()
+
+        self.session_id = args['session_id']
+        self.message = args['message']
+
+        if self.session_id == 0 or len(self.session_id) == 0:
+            self.session_id = generate_session_id()
+
+        print('-----------test')
         self.part_data, self.symptom_data, self.disease_data, self.medical_department = load_data()
-        
 
     @Dialogue.expect(model_dialogue)
     def post(self):
+        sql = 'SELECT * FROM dialogue ORDER BY id DESC'
+        stored_data = coco_db.executeOne(sql)
+
+        # 대화 시작 시
+        if stored_data is None:
+            ret_json = {
+                'session_id': self.session_id,
+                'message': '',
+                'part_code': None,
+                'part_name': None,
+                'symptom_code': []
+            }
+            return ret_json, 200
+        
+        dialog_data = user_query(self.message)
+        dialog_param = dialog_data['parameter']
+
+        # 부위 특정
+        part_name = ''
+        if 'PART_NAME' in dialog_param and len(dialog_param['PART_NAME']) > 0:
+            print(f'부위: {dialog_param["PART_NAME"]}')
+            for part_item in self.part_data:
+                if dialog_param['PART_NAME'] == part_item['part_name']:
+                    stored_data['part_code'] = part_item['part_code']
+                    stored_data['part_name'] = part_item['part_name']
+        
+        # 증상 목록
+        if len(dialog_param['SYMPTOM_NAME']) > 0:
+            print(f'증상: {dialog_param["SYMPTOM_NAME"]}')
+            for symptom_item in self.symptom_data:
+                if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in inputed_data['symptom_code']:
+                    stored_data['symptom_code'].append(symptom_item['symptom_code'])
+        
+        if stored_data['part_code'] is None: # 부위 정보가 없는 경우 질의
+            stored_data['message'] = '어디가 불편하신가요?'
+            return user_department_search_old(stored_data)
+        elif len(stored_data['symptom_code']) == 0: # 증상 정보가 없는 경우 질의
+            stored_data['message'] = f'{stored_data["part_name"]}이(가) 어떻게 아프신가요?'
+            return user_department_search_old(stored_data)
+
+        # 질병 후보군
+        disease_result = get_disease(self.disease_data, self.inputed_data)
+
+        # 진료과 후보군
+        departments = []
+        department_weights = {}
+        sum_department_weights = 0
+        for disease_item in disease_result:
+            if disease_item['medical_dept'] not in departments:
+                for dept in disease_item['medical_dept']:
+                    departments.append(dept)
+                    if dept not in department_weights:
+                        department_weights[dept] = 0
+                    department_weights[dept] += 1
+                    sum_department_weights += 1
+        departments = list(set(departments)) # 중복 제거
+
+        # 가장 가능성 높은 진료과 추정
+        most_department = max(department_weights, key=department_weights.get)
+        department_per = department_weights[most_department] / sum_department_weights
+        if department_per > 0.5:
+            departments = [most_department]
+
+
         ret_json = {
-            "message": "코코가 할 말",
-            "part_code": "인식한 부위의 코드",
-            "part_name": "인식한 부위의 이름",
-            "symtom_code": "인식한 증상의 코드"
+            "session_id": self.session_id,
+            "message": stored_data['message'],
+            "part_code": stored_data['part_code'],
+            "part_name": stored_data['part_name'],
+            "symptom_code": stored_data['symptom_code']
         }
 
-        
         return ret_json, 200
 
 def load_data():
     # Part
     sql = 'SELECT * FROM Part'
-    cursor.execute(sql)
-    part_data = cursor.fetchall()
+    part_data = coco_db.executeAll(sql)
 
     # Symptom
     sql = 'SELECT * FROM Symptom'
-    cursor.execute(sql)
-    symptom_data = cursor.fetchall()
+    symptom_data = coco_db.executeAll(sql)
 
     # Disease
     sql = 'SELECT * FROM Disease'
-    cursor.execute(sql)
-    disease_data = cursor.fetchall()
+    disease_data = coco_db.executeAll(sql)
     for disease_item in disease_data:
         disease_item['symptom_code'] = disease_item['symptom_code'].split(',')
         disease_item['medical_dept'] = disease_item['medical_dept_code'].split(',')
@@ -65,10 +135,14 @@ def load_data():
 
     # Medical Department
     sql = 'SELECT * FROM MedicalDepartment'
-    cursor.execute(sql)
-    medical_department = cursor.fetchall()
+    medical_department = coco_db.executeAll(sql)
 
     return part_data, symptom_data, disease_data, medical_department
+
+def generate_session_id():
+    sql = 'INSERT INTO SessionInfo'
+    coco_db.execute(sql)
+    return coco_db.getCursor().lastrowid
 
 def get_part(part_data, part_code):
     for part_item in part_data:
@@ -113,7 +187,7 @@ def user_query(query):
     )
     return response.json()
 
-def user_department_search(inputed_data=None):
+def user_department_search_old(part_data, symptom_data, disease_data, inputed_data=None):
     if inputed_data is None:
         inputed_data = {
             'message': '듣고 있어요.',
@@ -134,7 +208,7 @@ def user_department_search(inputed_data=None):
     part_name = ''
     if 'PART_NAME' in dialog_param and len(dialog_param['PART_NAME']) > 0:
         print(f'부위: {dialog_param["PART_NAME"]}')
-        for part_item in self.part_data:
+        for part_item in part_data:
             if dialog_param['PART_NAME'] == part_item['part_name']:
                 inputed_data['part_code'] = part_item['part_code']
                 inputed_data['part_name'] = part_item['part_name']
@@ -142,19 +216,19 @@ def user_department_search(inputed_data=None):
     # 증상 목록
     if len(dialog_param['SYMPTOM_NAME']) > 0:
         print(f'증상: {dialog_param["SYMPTOM_NAME"]}')
-        for symptom_item in self.symptom_data:
+        for symptom_item in symptom_data:
             if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in inputed_data['symptom_code']:
                 inputed_data['symptom_code'].append(symptom_item['symptom_code'])
     
     if inputed_data['part_code'] is None: # 부위 정보가 없는 경우 질의
         inputed_data['message'] = '어디가 불편하신가요?'
-        return user_department_search(inputed_data)
+        return user_department_search_old(inputed_data)
     elif len(inputed_data['symptom_code']) == 0: # 증상 정보가 없는 경우 질의
         inputed_data['message'] = f'{inputed_data["part_name"]}이(가) 어떻게 아프신가요?'
-        return user_department_search(inputed_data)
+        return user_department_search_old(inputed_data)
 
     # 질병 후보군
-    disease_result = get_disease(self.disease_data, inputed_data)
+    disease_result = get_disease(disease_data, inputed_data)
 
     # 진료과 후보군
     departments = []
@@ -185,4 +259,4 @@ def user_department_search(inputed_data=None):
     print(f'후보 질병 수: {len(disease_result)}')
     print(f'후보 진료과 수: {len(departments)}')
     print(department_weights)
-    return user_department_search(inputed_data)
+    return user_department_search_old(part_data, symptom_data, disease_data, inputed_data)

@@ -33,3 +33,6 @@ class Database:
 
     def commit(self):
         self.db.commit()
+    
+    def getCursor(self):
+        return self.cursor
