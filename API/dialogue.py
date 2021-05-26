@@ -32,10 +32,10 @@ class PostDialogue(Resource):
 
         args = parser.parse_args()
 
-        self.session_id = args['session_id']
+        self.session_id = int(args['session_id'])
         self.message = args['message']
 
-        if self.session_id == 0 or len(self.session_id) == 0:
+        if self.session_id == 0:
             self.session_id = generate_session_id()
 
         print(f'세션ID: {self.session_id}')
@@ -49,14 +49,15 @@ class PostDialogue(Resource):
         # 대화 시작 시
         print(f'rowcount: {coco_db.getCursor().rowcount}')
         if coco_db.getCursor().rowcount == 0:
-            ret_json = {
+            ret_json = stored_data = {
                 'session_id': self.session_id,
                 'message': '',
                 'part_code': None,
                 'part_name': None,
                 'symptom_code': []
             }
-            return ret_json, 200
+        else:
+            ret_json = stored_data
         
         dialog_data = user_query(self.message)
         dialog_param = dialog_data['parameter']
@@ -66,11 +67,11 @@ class PostDialogue(Resource):
             dialog_param['SYMPTOM_NAME'] = ''
 
         # 부위 특정
-        part_name = ''
         if len(dialog_param['PART_NAME']) > 0:
             print(f'부위: {dialog_param["PART_NAME"]}')
             for part_item in self.part_data:
                 if dialog_param['PART_NAME'] == part_item['part_name']:
+                    print(part_item)
                     stored_data['part_code'] = part_item['part_code']
                     stored_data['part_name'] = part_item['part_name']
         
@@ -78,39 +79,36 @@ class PostDialogue(Resource):
         if len(dialog_param['SYMPTOM_NAME']) > 0:
             print(f'증상: {dialog_param["SYMPTOM_NAME"]}')
             for symptom_item in self.symptom_data:
-                if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in inputed_data['symptom_code']:
+                if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in stored_data['symptom_code']:
                     stored_data['symptom_code'].append(symptom_item['symptom_code'])
         
         if stored_data['part_code'] is None: # 부위 정보가 없는 경우 질의
             stored_data['message'] = '어디가 불편하신가요?'
-            return user_department_search_old(stored_data)
         elif len(stored_data['symptom_code']) == 0: # 증상 정보가 없는 경우 질의
             stored_data['message'] = f'{stored_data["part_name"]}이(가) 어떻게 아프신가요?'
-            return user_department_search_old(stored_data)
+        else:
+            # 질병 후보군
+            disease_result = get_disease(self.disease_data, stored_data)
 
-        # 질병 후보군
-        disease_result = get_disease(self.disease_data, self.inputed_data)
+            # 진료과 후보군
+            departments = []
+            department_weights = {}
+            sum_department_weights = 0
+            for disease_item in disease_result:
+                if disease_item['medical_dept'] not in departments:
+                    for dept in disease_item['medical_dept']:
+                        departments.append(dept)
+                        if dept not in department_weights:
+                            department_weights[dept] = 0
+                        department_weights[dept] += 1
+                        sum_department_weights += 1
+            departments = list(set(departments)) # 중복 제거
 
-        # 진료과 후보군
-        departments = []
-        department_weights = {}
-        sum_department_weights = 0
-        for disease_item in disease_result:
-            if disease_item['medical_dept'] not in departments:
-                for dept in disease_item['medical_dept']:
-                    departments.append(dept)
-                    if dept not in department_weights:
-                        department_weights[dept] = 0
-                    department_weights[dept] += 1
-                    sum_department_weights += 1
-        departments = list(set(departments)) # 중복 제거
-
-        # 가장 가능성 높은 진료과 추정
-        most_department = max(department_weights, key=department_weights.get)
-        department_per = department_weights[most_department] / sum_department_weights
-        if department_per > 0.5:
-            departments = [most_department]
-
+            # 가장 가능성 높은 진료과 추정
+            most_department = max(department_weights, key=department_weights.get)
+            department_per = department_weights[most_department] / sum_department_weights
+            if department_per > 0.5:
+                departments = [most_department]
 
         ret_json = {
             "session_id": self.session_id,
@@ -119,7 +117,7 @@ class PostDialogue(Resource):
             "part_name": stored_data['part_name'],
             "symptom_code": stored_data['symptom_code']
         }
-
+        insert_dialogue(ret_json)
         return ret_json, 200
 
 def load_data():
@@ -150,6 +148,13 @@ def generate_session_id():
     coco_db.execute(sql)
     coco_db.commit()
     return coco_db.getCursor().lastrowid
+
+def insert_dialogue(data):
+    sql = 'INSERT INTO Dialogue \
+        (session_id, message, part_code, part_name, symptom_code) \
+        VALUES (%s, %s, %s, %s, %s)'
+    coco_db.execute(sql, (data['session_id'], data['message'], data['part_code'], data['part_name'], str(data['symptom_code'])))
+    coco_db.commit()
 
 def get_part(part_data, part_code):
     for part_item in part_data:
