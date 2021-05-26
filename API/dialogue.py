@@ -4,10 +4,10 @@ from flask_restplus import Namespace, Resource, fields, reqparse
 from collections import OrderedDict
 from database import Database
 
-Dialogue = Namespace('dialog', description='대화를 통한 진료과 도출')
+Dialogue = Namespace('dialogue', description='대화를 통한 진료과 도출')
 
 response_model_dialogue = Dialogue.model('Dialogue Model', {
-    'session_id': fields.String(description='세션ID'),
+    'session_id': fields.Integer(description='세션ID'),
     'message': fields.String(description='코코가 할 말'),
     'part_code': fields.String(description='인식한 부위의 코드'),
     'part_name': fields.String(description='인식한 부위의 이름'),
@@ -15,7 +15,7 @@ response_model_dialogue = Dialogue.model('Dialogue Model', {
 })
 
 model_dialogue = Dialogue.model("", {
-    'session_id': fields.String(description='세션ID'),
+    'session_id': fields.Integer(description='세션ID'),
     'message': fields.String(description='사용자 메시지')
 })
 
@@ -27,6 +27,7 @@ class PostDialogue(Resource):
     def __init__(self, api=None, *args, **kwargs):
         super().__init__(api, args, kwargs)
         parser = reqparse.RequestParser()
+        parser.add_argument('session_id', type=int, required=True)
         parser.add_argument('message', type=str, required=True)
 
         args = parser.parse_args()
@@ -37,16 +38,17 @@ class PostDialogue(Resource):
         if self.session_id == 0 or len(self.session_id) == 0:
             self.session_id = generate_session_id()
 
-        print('-----------test')
+        print(f'세션ID: {self.session_id}')
         self.part_data, self.symptom_data, self.disease_data, self.medical_department = load_data()
 
     @Dialogue.expect(model_dialogue)
     def post(self):
-        sql = 'SELECT * FROM dialogue ORDER BY id DESC'
+        sql = f'SELECT * FROM Dialogue WHERE session_id={int(self.session_id)} ORDER BY id DESC LIMIT 1'
         stored_data = coco_db.executeOne(sql)
 
         # 대화 시작 시
-        if stored_data is None:
+        print(f'rowcount: {coco_db.getCursor().rowcount}')
+        if coco_db.getCursor().rowcount == 0:
             ret_json = {
                 'session_id': self.session_id,
                 'message': '',
@@ -58,10 +60,14 @@ class PostDialogue(Resource):
         
         dialog_data = user_query(self.message)
         dialog_param = dialog_data['parameter']
+        if 'PART_NAME' not in dialog_param:
+            dialog_param['PART_NAME'] = ''
+        if 'SYMPTOM_NAME' not in dialog_param:
+            dialog_param['SYMPTOM_NAME'] = ''
 
         # 부위 특정
         part_name = ''
-        if 'PART_NAME' in dialog_param and len(dialog_param['PART_NAME']) > 0:
+        if len(dialog_param['PART_NAME']) > 0:
             print(f'부위: {dialog_param["PART_NAME"]}')
             for part_item in self.part_data:
                 if dialog_param['PART_NAME'] == part_item['part_name']:
@@ -140,8 +146,9 @@ def load_data():
     return part_data, symptom_data, disease_data, medical_department
 
 def generate_session_id():
-    sql = 'INSERT INTO SessionInfo'
+    sql = 'INSERT INTO SessionInfo VALUES ()'
     coco_db.execute(sql)
+    coco_db.commit()
     return coco_db.getCursor().lastrowid
 
 def get_part(part_data, part_code):
