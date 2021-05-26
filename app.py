@@ -1,9 +1,12 @@
 import os
 from flask import Flask, Blueprint
 from flask_restplus import Api
+
+from API.dialogue import Dialogue
 from API.hospital import Hospital
 from API.sendMessage import SendMessage
-from API.dialogue import Dialogue
+
+
 app = Flask(__name__)
 app.config['CORS_HEADERS'] = 'Content-Type'
 app.config['JSON_AS_ASCII'] = False

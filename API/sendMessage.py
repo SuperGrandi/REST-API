@@ -32,7 +32,6 @@ class PostSendMessage(Resource):
         parser.add_argument('latitude', type=str, required=False)
         parser.add_argument('longitude', type=str, required=False)
 
-
         args = parser.parse_args()
         self.__session_id = args['session_id']
         self.__message = args['message']
@@ -80,10 +79,11 @@ class PostSendMessage(Resource):
     @SendMessage.expect(model_send_message)
     def post(self):
         if "병원" in self.__message:
-            info = hospital.get_hospital_by_location(self.__lat, self.__lon, "D001", "N", 1)
+            info = hospital.get_hospital_by_location(self.__lat, self.__lon, "D001", 1)
             print(info)
             return_json = {'message': "근처 가까운 병원이에요", 'hospital_info': info["items"][0]}
         else:
             project_id = 'coco-huic'
             return_json = self.detect_intent_texts(project_id, self.__session_id, self.__message, 'ko')
 
+        return return_json

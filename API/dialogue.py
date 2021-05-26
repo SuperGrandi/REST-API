@@ -21,6 +21,7 @@ model_dialogue = Dialogue.model("", {
 
 coco_db = Database()
 
+
 @Dialogue.route("")
 class PostDialogue(Resource):
 
@@ -58,7 +59,7 @@ class PostDialogue(Resource):
             }
         else:
             ret_json = stored_data
-        
+
         dialog_data = user_query(self.message)
         dialog_param = dialog_data['parameter']
         if 'PART_NAME' not in dialog_param:
@@ -74,17 +75,16 @@ class PostDialogue(Resource):
                     print(part_item)
                     stored_data['part_code'] = part_item['part_code']
                     stored_data['part_name'] = part_item['part_name']
-        
+
         # 증상 목록
         if len(dialog_param['SYMPTOM_NAME']) > 0:
             print(f'증상: {dialog_param["SYMPTOM_NAME"]}')
             for symptom_item in self.symptom_data:
-                if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in stored_data['symptom_code']:
+                if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in \
+                        stored_data['symptom_code']:
                     stored_data['symptom_code'].append(symptom_item['symptom_code'])
-        
-        if stored_data['part_code'] is None: # 부위 정보가 없는 경우 질의
+        if stored_data['part_code'] is None:  # 부위 정보가 없는 경우 질의
             stored_data['message'] = '어디가 불편하신가요?'
-        elif len(stored_data['symptom_code']) == 0: # 증상 정보가 없는 경우 질의
             stored_data['message'] = f'{stored_data["part_name"]}이(가) 어떻게 아프신가요?'
         else:
             # 질병 후보군
@@ -102,7 +102,7 @@ class PostDialogue(Resource):
                             department_weights[dept] = 0
                         department_weights[dept] += 1
                         sum_department_weights += 1
-            departments = list(set(departments)) # 중복 제거
+            departments = list(set(departments))  # 중복 제거
 
             # 가장 가능성 높은 진료과 추정
             most_department = max(department_weights, key=department_weights.get)
@@ -119,6 +119,7 @@ class PostDialogue(Resource):
         }
         insert_dialogue(ret_json)
         return ret_json, 200
+
 
 def load_data():
     # Part
@@ -143,18 +144,22 @@ def load_data():
 
     return part_data, symptom_data, disease_data, medical_department
 
+
 def generate_session_id():
     sql = 'INSERT INTO SessionInfo VALUES ()'
     coco_db.execute(sql)
     coco_db.commit()
     return coco_db.getCursor().lastrowid
 
+
 def insert_dialogue(data):
     sql = 'INSERT INTO Dialogue \
         (session_id, message, part_code, part_name, symptom_code) \
         VALUES (%s, %s, %s, %s, %s)'
-    coco_db.execute(sql, (data['session_id'], data['message'], data['part_code'], data['part_name'], str(data['symptom_code'])))
+    coco_db.execute(sql, (
+    data['session_id'], data['message'], data['part_code'], data['part_name'], str(data['symptom_code'])))
     coco_db.commit()
+
 
 def get_part(part_data, part_code):
     for part_item in part_data:
@@ -162,42 +167,46 @@ def get_part(part_data, part_code):
             return part_item
     return None
 
+
 def get_symptom(symptom_data, symptom_code):
     for symptom_item in symptom_data:
         if symptom_item['symptom_code'] == symptom_code:
             return symptom_item
     return None
-  
+
+
 def get_disease(disease_data, inputed_data):
     disease_result = []
     for disease_item in disease_data:
         symptom_matched = True
 
         if inputed_data['part_code'] != disease_item['part_code']:
-            continue # 부위가 다르면 다음 질병 조회
+            continue  # 부위가 다르면 다음 질병 조회
 
         for inputed_symptom in inputed_data['symptom_code']:
             if inputed_symptom not in disease_item['symptom_code']:
                 symptom_matched = False
-                break # 다음 질병 조회
+                break  # 다음 질병 조회
 
         if symptom_matched == True:
             disease_result.append(disease_item)
     return disease_result
 
+
 def user_query(query):
     import requests, json
 
-    #requests.post(url, data=json.dumps(data))
+    # requests.post(url, data=json.dumps(data))
 
     response = requests.post(
-        url = "https://n3ase4t7k2.execute-api.ap-northeast-2.amazonaws.com/dev/api/sendMessage",
-        data = {
+        url="https://n3ase4t7k2.execute-api.ap-northeast-2.amazonaws.com/dev/api/sendMessage",
+        data={
             "session_id": "test",
             "message": query
         }
     )
     return response.json()
+
 
 def user_department_search_old(part_data, symptom_data, disease_data, inputed_data=None):
     if inputed_data is None:
@@ -224,18 +233,19 @@ def user_department_search_old(part_data, symptom_data, disease_data, inputed_da
             if dialog_param['PART_NAME'] == part_item['part_name']:
                 inputed_data['part_code'] = part_item['part_code']
                 inputed_data['part_name'] = part_item['part_name']
-    
+
     # 증상 목록
     if len(dialog_param['SYMPTOM_NAME']) > 0:
         print(f'증상: {dialog_param["SYMPTOM_NAME"]}')
         for symptom_item in symptom_data:
-            if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in inputed_data['symptom_code']:
+            if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in \
+                    inputed_data['symptom_code']:
                 inputed_data['symptom_code'].append(symptom_item['symptom_code'])
-    
-    if inputed_data['part_code'] is None: # 부위 정보가 없는 경우 질의
+
+    if inputed_data['part_code'] is None:  # 부위 정보가 없는 경우 질의
         inputed_data['message'] = '어디가 불편하신가요?'
         return user_department_search_old(inputed_data)
-    elif len(inputed_data['symptom_code']) == 0: # 증상 정보가 없는 경우 질의
+    elif len(inputed_data['symptom_code']) == 0:  # 증상 정보가 없는 경우 질의
         inputed_data['message'] = f'{inputed_data["part_name"]}이(가) 어떻게 아프신가요?'
         return user_department_search_old(inputed_data)
 
@@ -254,7 +264,7 @@ def user_department_search_old(part_data, symptom_data, disease_data, inputed_da
                     department_weights[dept] = 0
                 department_weights[dept] += 1
                 sum_department_weights += 1
-    departments = list(set(departments)) # 중복 제거
+    departments = list(set(departments))  # 중복 제거
 
     # 가장 가능성 높은 진료과 추정
     most_department = max(department_weights, key=department_weights.get)

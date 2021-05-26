@@ -1,3 +1,4 @@
-/venv/
-/__pycache__/
-/.idea/
+venv/
+.idea/
+__pycache__/
+API/__pycache__/
