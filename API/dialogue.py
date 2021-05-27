@@ -3,6 +3,8 @@ from flask import jsonify
 from flask_restplus import Namespace, Resource, fields, reqparse
 from collections import OrderedDict
 from database import Database
+import requests
+import ast
 
 Dialogue = Namespace('dialogue', description='대화를 통한 진료과 도출')
 
@@ -58,6 +60,7 @@ class PostDialogue(Resource):
                 'symptom_code': []
             }
         else:
+            stored_data['symptom_code'] = ast.literal_eval(stored_data['symptom_code'])
             ret_json = stored_data
 
         dialog_data = user_query(self.message)
@@ -111,6 +114,16 @@ class PostDialogue(Resource):
             department_per = department_weights[most_department] / sum_department_weights
             if department_per > 0.5:
                 departments = [most_department]
+            
+            print(departments)
+            print(department_weights)
+            
+            if len(departments) == 1:
+                stored_data['message'] = f'진료과 {departments[0]}를 안내해 드리겠습니다.'
+            elif len(disease_result) == 0:
+                stored_data['message'] = '진료과를 찾지 못했습니다.'
+            else:
+                stored_data['message'] = '조금 더 자세히 말씀해 주세요.'
 
         ret_json = {
             "session_id": self.session_id,
@@ -196,9 +209,7 @@ def get_disease(disease_data, inputed_data):
 
 
 def user_query(query):
-    import requests, json
-
-    # requests.post(url, data=json.dumps(data))
+    #requests.post(url, data=json.dumps(data))
 
     response = requests.post(
         url="https://n3ase4t7k2.execute-api.ap-northeast-2.amazonaws.com/dev/api/sendMessage",
