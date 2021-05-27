@@ -4,6 +4,7 @@ from flask_restplus import Namespace, Resource, fields, reqparse
 from collections import OrderedDict
 
 from API import hospital
+from API.sendMessage import detect_intent_texts
 from database import Database
 import requests
 import ast
@@ -242,16 +243,9 @@ def get_disease(disease_data, inputed_data):
 
 
 def user_query(query):
-    #requests.post(url, data=json.dumps(data))
-
-    response = requests.post(
-        url="https://n3ase4t7k2.execute-api.ap-northeast-2.amazonaws.com/dev/api/sendMessage",
-        data={
-            "session_id": "test",
-            "message": query
-        }
-    )
-    return response.json()
+    project_id = 'coco-huic'
+    response = detect_intent_texts(project_id, "test", query, 'ko')
+    return response
 
 
 def user_department_search_old(part_data, symptom_data, disease_data, inputed_data=None):
