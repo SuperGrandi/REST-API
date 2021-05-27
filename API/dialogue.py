@@ -64,6 +64,7 @@ class PostDialogue(Resource):
 
     @Dialogue.expect(model_dialogue)
     def post(self):
+
         sql = f'SELECT * FROM Dialogue WHERE session_id={int(self.session_id)} ORDER BY id DESC LIMIT 1'
         stored_data = coco_db.executeOne(sql)
         hospital_info = None
@@ -107,8 +108,10 @@ class PostDialogue(Resource):
 
         if stored_data['part_code'] is None:  # 부위 정보가 없는 경우 질의
             stored_data['message'] = '어디가 불편하신가요?'
+
         elif len(stored_data['symptom_code']) == 0:  # 증상 정보가 없는 경우 질의
             stored_data['message'] = f'{stored_data["part_name"]}이(가) 어떻게 아프신가요?'
+
         else:
             # 질병 후보군
             disease_result = get_disease(self.disease_data, stored_data)
@@ -137,10 +140,14 @@ class PostDialogue(Resource):
             print(department_weights)
 
             if len(departments) == 1:
-                info = hospital.get_hospital_by_location(self.__lat, self.__lon, departments[0], 1)
-                hospital_info = {'hospital_info': info["items"][0]}
-                hospital_name = hospital_info['hospital_info']['name']
-                stored_data['message'] = f'여기서 가장 가까운 {dept_code_dict[departments[0]]}인 {hospital_name}을(를) 안내해 드리겠습니다.'
+                try:
+                    info = hospital.get_hospital_by_location(self.__lat, self.__lon, departments[0], 1)
+                    hospital_info = {'hospital_info': info["items"][0]}
+                    hospital_name = hospital_info['hospital_info']['name']
+                    stored_data[
+                        'message'] = f'여기서 가장 가까운 {dept_code_dict[departments[0]]}인 {hospital_name}을(를) 안내해 드리겠습니다.'
+                except:
+                    stored_data['message'] = f'어디 계신지 모르겠어요.'
 
             elif len(disease_result) == 0:
                 stored_data['message'] = '진료과를 찾지 못했습니다.'
