@@ -2,6 +2,8 @@
 from flask import jsonify
 from flask_restplus import Namespace, Resource, fields, reqparse
 from collections import OrderedDict
+
+from API import hospital
 from database import Database
 import requests
 import ast
@@ -18,10 +20,22 @@ response_model_dialogue = Dialogue.model('Dialogue Model', {
 
 model_dialogue = Dialogue.model("", {
     'session_id': fields.Integer(description='세션ID'),
-    'message': fields.String(description='사용자 메시지')
+    'message': fields.String(description='사용자 메시지'),
+    "latitude": fields.String(description='위도', required=False),
+    "longitude": fields.String(description='경도', required=False),
 })
 
 coco_db = Database()
+
+dept_code_dict = {
+    "D001": "내과", "D002": "소아청소년과", "D003": "신경과", "D004": "정신건강의학과", "D005": "피부과", "D006": "외과",
+    "D007": "흉부외과",
+    "D008": "정형외과", "D009": "신경외과", "D010": "성형외과", "D011": "산부인과", "D012": "안과", "D013": "이비인후과",
+    "D014": "비뇨기과",
+    "D016": "재활의학과",
+    "D017": "마취통증의학과", "D018": "영상의학과", "D019": "치료방사선과", "D020": "임상병리과", "D021": "해부병리과", "D022": "가정의학과",
+    "D023": "핵의학과", "D024": "응급의학과", "D026": "치과", "D034": "구강악안면외과"
+}
 
 
 @Dialogue.route("")
@@ -32,11 +46,15 @@ class PostDialogue(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('session_id', type=int, required=True)
         parser.add_argument('message', type=str, required=True)
+        parser.add_argument('latitude', type=str, required=False)
+        parser.add_argument('longitude', type=str, required=False)
 
         args = parser.parse_args()
 
         self.session_id = int(args['session_id'])
         self.message = args['message']
+        self.__lat = args['latitude']
+        self.__lon = args['longitude']
 
         if self.session_id == 0:
             self.session_id = generate_session_id()
@@ -48,7 +66,7 @@ class PostDialogue(Resource):
     def post(self):
         sql = f'SELECT * FROM Dialogue WHERE session_id={int(self.session_id)} ORDER BY id DESC LIMIT 1'
         stored_data = coco_db.executeOne(sql)
-
+        hospital_info = None
         # 대화 시작 시
         print(f'rowcount: {coco_db.getCursor().rowcount}')
         if coco_db.getCursor().rowcount == 0:
@@ -117,9 +135,13 @@ class PostDialogue(Resource):
             
             print(departments)
             print(department_weights)
-            
+
             if len(departments) == 1:
-                stored_data['message'] = f'진료과 {departments[0]}를 안내해 드리겠습니다.'
+                info = hospital.get_hospital_by_location(self.__lat, self.__lon, departments[0], 1)
+                hospital_info = {'hospital_info': info["items"][0]}
+                hospital_name = hospital_info['hospital_info']['name']
+                stored_data['message'] = f'여기서 가장 가까운 {dept_code_dict[departments[0]]}인 {hospital_name}을(를) 안내해 드리겠습니다.'
+
             elif len(disease_result) == 0:
                 stored_data['message'] = '진료과를 찾지 못했습니다.'
             else:
@@ -132,6 +154,10 @@ class PostDialogue(Resource):
             "part_name": stored_data['part_name'],
             "symptom_code": stored_data['symptom_code']
         }
+
+        if hospital_info:
+            ret_json.update(hospital_info)
+
         insert_dialogue(ret_json)
         return ret_json, 200
 
