@@ -137,11 +137,13 @@ def query_by_part_symptom(self, dialog_param, stored_data):
                     stored_data['symptom_code']:
                 stored_data['symptom_code'].append(symptom_item['symptom_code'])
 
-    if stored_data['part_code'] is None:  # 부위 정보가 없는 경우 질의
-        stored_data['message'] = '어디가 불편하신가요?'
+    #if stored_data['part_code'] is None:  # 부위 정보가 없는 경우 질의
+    #    stored_data['message'] = '어디가 불편하신가요?'
 
-    elif len(stored_data['symptom_code']) == 0:  # 증상 정보가 없는 경우 질의
-        stored_data['message'] = f'{stored_data["part_name"]}이(가) 어떻게 아프신가요?'
+    if len(stored_data['symptom_code']) == 0:  # 증상 정보가 없는 경우 질의
+        stored_data['message'] = '어디가 불편하신가요?'
+        if stored_data['part_name'] is not None:
+            stored_data['message'] = f'{stored_data["part_name"]}이(가) 어떻게 아프신가요?'
 
     else:
         # 질병 후보군
