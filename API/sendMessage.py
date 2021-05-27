@@ -84,6 +84,6 @@ class PostSendMessage(Resource):
             return_json = {'message': "근처 가까운 병원이에요", 'hospital_info': info["items"][0]}
         else:
             project_id = 'coco-huic'
-            return_json = self.detect_intent_texts(project_id, self.__session_id, self.__message, 'ko')
+            return_json = detect_intent_texts(project_id, self.__session_id, self.__message, 'ko')
 
         return return_json
