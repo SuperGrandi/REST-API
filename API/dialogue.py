@@ -203,7 +203,8 @@ class PostDialogue(Resource):
         elif dialog_intent == '응급실 호출':
             stored_data = self.emergency_call(dialog_param, stored_data)
         # 기타 스몰토크
-
+        else:
+            stored_data = etc_intents(dialog_data, stored_data)
 
         ret_json = {
             "session_id": self.session_id,
