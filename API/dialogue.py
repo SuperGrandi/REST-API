@@ -161,6 +161,10 @@ class PostDialogue(Resource):
         }
         return stored_data
 
+    def etc_intents(self, dialog_data, stored_data):
+        stored_data['message'] = dialog_data['message']
+        return stored_data
+
     @Dialogue.expect(model_dialogue)
     def post(self):
 
@@ -204,7 +208,7 @@ class PostDialogue(Resource):
             stored_data = self.emergency_call(dialog_param, stored_data)
         # 기타 스몰토크
         else:
-            stored_data = etc_intents(dialog_data, stored_data)
+            stored_data = self.etc_intents(dialog_data, stored_data)
 
         ret_json = {
             "session_id": self.session_id,
