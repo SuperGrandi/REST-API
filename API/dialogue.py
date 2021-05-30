@@ -148,7 +148,7 @@ class PostDialogue(Resource):
 
         return stored_data, hospital_info
 
-    def emergency_query(self, dialog_param, stored_data):
+    def emergency_query(self, stored_data):
         hospital_info = None
 
         info = hospital.get_hospital_by_location(self.__lat, self.__lon, "EMR", 1)
@@ -167,7 +167,7 @@ class PostDialogue(Resource):
         }
         return stored_data, hospital_info
 
-    def emergency_call(self, dialog_param, stored_data):
+    def emergency_call(self, stored_data):
         stored_data = {
             "session_id": self.session_id,
             "message": "119에 전화할게요!",
@@ -218,10 +218,10 @@ class PostDialogue(Resource):
             stored_data, hospital_info = self.query_by_part_symptom(dialog_param, stored_data)
         # 응급실 질의
         elif dialog_intent == '응급실 질의':
-            stored_data, hospital_info = self.emergency_query(dialog_param, stored_data)
+            stored_data, hospital_info = self.emergency_query(stored_data)
         # 응급실 호출
         elif dialog_intent == '응급실 호출':
-            stored_data = self.emergency_call(dialog_param, stored_data)
+            stored_data = self.emergency_call(stored_data)
         # 기타 스몰토크
         else:
             stored_data = self.etc_intents(dialog_data, stored_data)
