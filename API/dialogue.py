@@ -110,7 +110,7 @@ class PostDialogue(Resource):
             symptom_weights = {}
             for disease_item in disease_result:
                 for symptom_code in disease_item['symptom_code']:
-                    if symptom_code not in stored_data['symptom_code']:
+                    if symptom_code not in stored_data['symptom_code'] and symptom_code not in stored_data['excepted_symptoms']:
                         if symptom_code not in symptom_weights:
                             symptom_weights[symptom_code] = 0
                         symptom_weights[symptom_code] += 1
@@ -134,19 +134,32 @@ class PostDialogue(Resource):
                     info = hospital.get_hospital_by_location(self.__lat, self.__lon, departments[0], 1)
                     hospital_info = {'hospital_info': info["items"][0]}
                     hospital_name = hospital_info['hospital_info']['name']
-                    stored_data[
-                        'message'] = f'여기서 가장 가까운 {dept_code_dict[departments[0]]}인 {hospital_name}을(를) 안내해 드릴게요.'
+                    stored_data['message'] = f'여기서 가장 가까운 {dept_code_dict[departments[0]]}인 {hospital_name}을(를) 안내해 드릴게요.'
                 except:
                     stored_data['message'] = f'어디 계신지 모르겠어요.'
 
             elif len(disease_result) == 0:
                 stored_data['message'] = '진료과를 찾지 못했습니다.'
             elif most_symptom is not None:
+                stored_data['asked_symptom'] = most_symptom
                 stored_data['message'] = f'{most_symptom_name} 증상이 있지는 않으신가요?'
             else:
                 stored_data['message'] = '조금 더 자세히 말씀해 주세요.'
-
+        
+        if len(stored_data['pre_message']) > 0:
+            stored_data['message'] = f'{stored_data["pre_message"]}\n{stored_data["message"]}'
         return stored_data, hospital_info
+
+    def answer_symptom(self, dialog_param, stored_data):
+        answer = dialog_param['ANSWER_YESNO']
+
+        if answer == 'Yes':
+            stored_data['symptom_code'].append(stored_data['asked_symptom'])
+        elif answer == 'No':
+            stored_data['excepted_symptoms'].append(stored_data['excepted_symptoms'])
+        else:
+            stored_data['pre_message'] = '이해하지 못했어요.'
+        return self.query_by_part_symptom(dialog_param, stored_data)
 
     def emergency_query(self, stored_data):
         hospital_info = None
@@ -160,20 +173,27 @@ class PostDialogue(Resource):
 
         stored_data = {
             "session_id": self.session_id,
+            "pre_message": "",
             "message": message,
             "part_code": None,
             "part_name": None,
-            "symptom_code": "EMR"
+            "asked_symptom": "",
+            "symptom_code": "EMR",
+            "excepted_symptoms": []
         }
         return stored_data, hospital_info
 
     def emergency_call(self, stored_data):
         stored_data = {
             "session_id": self.session_id,
+            "pre_message": "",
             "message": "119에 전화할게요!",
             "part_code": None,
             "part_name": None,
-            "symptom_code": "EMR"
+            "asked_symptom": "",
+            "symptom_code": "EMR",
+            "excepted_symptoms": []
+
         }
         return stored_data
 
@@ -193,13 +213,17 @@ class PostDialogue(Resource):
         if coco_db.getCursor().rowcount == 0:
             ret_json = stored_data = {
                 'session_id': self.session_id,
+                'pre_message': '',
                 'message': '',
                 'part_code': None,
                 'part_name': None,
-                'symptom_code': []
+                'asked_symptom': '',
+                'symptom_code': [],
+                'excepted_symptoms': [],
             }
         else:
             stored_data['symptom_code'] = ast.literal_eval(stored_data['symptom_code'])
+            stored_data['excepted_symptoms'] = ast.literal_eval(stored_data['excepted_symptoms'])
             ret_json = stored_data
 
         dialog_data = user_query(self.message)
@@ -216,6 +240,9 @@ class PostDialogue(Resource):
         # 부위 질의 or 증상 질의
         if dialog_intent == '부위 질의' or dialog_intent == '증상 질의':
             stored_data, hospital_info = self.query_by_part_symptom(dialog_param, stored_data)
+        # 증상 확인
+        elif dialog_intent == '증상 확인':
+            stored_data = self.answer_symptom(dialog_param, stored_data)
         # 응급실 질의
         elif dialog_intent == '응급실 질의':
             stored_data, hospital_info = self.emergency_query(stored_data)
@@ -225,13 +252,20 @@ class PostDialogue(Resource):
         # 기타 스몰토크
         else:
             stored_data = self.etc_intents(dialog_data, stored_data)
+        
+        # 증상 확인 절차 초기화
+        stored_data['asked_symptom'] = ''
+        stored_data['pre_message'] = ''
 
         ret_json = {
             "session_id": self.session_id,
+            "pre_message": stored_data['pre_message'],
             "message": stored_data['message'],
             "part_code": stored_data['part_code'],
             "part_name": stored_data['part_name'],
-            "symptom_code": stored_data['symptom_code']
+            "asked_symptom": stored_data['asked_symptom'],
+            "symptom_code": stored_data['symptom_code'],
+            "excepted_symptoms": stored_data['excepted_symptoms']
         }
         insert_dialogue(ret_json)
 
@@ -316,80 +350,3 @@ def user_query(query):
     project_id = 'coco-huic'
     response = detect_intent_texts(project_id, "test", query, 'ko')
     return response
-
-
-def user_department_search_old(part_data, symptom_data, disease_data, inputed_data=None):
-    if inputed_data is None:
-        inputed_data = {
-            'message': '듣고 있어요.',
-            'part_code': None,
-            'part_name': None,
-            'symptom_code': []
-        }
-
-    print('')
-    print(inputed_data)
-    print(inputed_data['message'])
-    user_input = input('> 입력: ')
-
-    dialog_data = user_query(user_input)
-    print(dialog_data)
-    dialog_param = dialog_data['parameter']
-
-    # 부위 특정
-    part_name = ''
-    if 'PART_NAME' in dialog_param and len(dialog_param['PART_NAME']) > 0:
-        print(f'부위: {dialog_param["PART_NAME"]}')
-        for part_item in part_data:
-            if dialog_param['PART_NAME'] == part_item['part_name']:
-                inputed_data['part_code'] = part_item['part_code']
-                inputed_data['part_name'] = part_item['part_name']
-
-    # 증상 목록
-    if len(dialog_param['SYMPTOM_NAME']) > 0:
-        print(f'증상: {dialog_param["SYMPTOM_NAME"]}')
-        for symptom_item in symptom_data:
-            if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in \
-                    inputed_data['symptom_code']:
-                inputed_data['symptom_code'].append(symptom_item['symptom_code'])
-
-    if inputed_data['part_code'] is None:  # 부위 정보가 없는 경우 질의
-        inputed_data['message'] = '어디가 불편하신가요?'
-        return user_department_search_old(inputed_data)
-    elif len(inputed_data['symptom_code']) == 0:  # 증상 정보가 없는 경우 질의
-        inputed_data['message'] = f'{inputed_data["part_name"]}이(가) 어떻게 아프신가요?'
-        return user_department_search_old(inputed_data)
-
-    # 질병 후보군
-    disease_result = get_disease(disease_data, inputed_data)
-
-    # 진료과 후보군
-    departments = []
-    department_weights = {}
-    sum_department_weights = 0
-    for disease_item in disease_result:
-        if disease_item['medical_dept'] not in departments:
-            for dept in disease_item['medical_dept']:
-                departments.append(dept)
-                if dept not in department_weights:
-                    department_weights[dept] = 0
-                department_weights[dept] += 1
-                sum_department_weights += 1
-    departments = list(set(departments))  # 중복 제거
-
-    # 가장 가능성 높은 진료과 추정
-    most_department = max(department_weights, key=department_weights.get)
-    department_per = department_weights[most_department] / sum_department_weights
-    if department_per > 0.5:
-        departments = [most_department]
-
-    if len(departments) == 1:
-        print(f'진료과 {departments[0]}를 안내해 드리겠습니다.')
-        return departments[0]
-    elif len(disease_result) == 0:
-        print('진료과를 찾지 못했습니다.')
-        return None
-    print(f'후보 질병 수: {len(disease_result)}')
-    print(f'후보 진료과 수: {len(departments)}')
-    print(department_weights)
-    return user_department_search_old(part_data, symptom_data, disease_data, inputed_data)
