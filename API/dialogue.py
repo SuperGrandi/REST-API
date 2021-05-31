@@ -77,26 +77,40 @@ class PostDialogue(Resource):
                     stored_data['part_name'] = part_item['part_name']
 
         # 증상 목록
+        symptom_parts = []
         if len(dialog_param['SYMPTOM_NAME']) > 0:
-            print(f'증상: {dialog_param["SYMPTOM_NAME"]}')
             target_symptoms = filter(lambda x: x['symptom_code'] not in stored_data['symptom_code'], self.symptom_data)
             for symptom_item in list(target_symptoms):
                 # 대화에서 도출한 증상명과 일치하는 증상인 경우
                 # 혹은 대화에서 도출한 증상명을 동의어로 가지는 증상인 경우
-                if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] \
-                    or dialog_param['SYMPTOM_NAME'] in symptom_item['synonym']:
-                    stored_data['symptom_code'].append(symptom_item['symptom_code'])
+                if (dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] \
+                or dialog_param['SYMPTOM_NAME'] in symptom_item['synonym']) \
+                and stored_data['part_code'] is not None \
+                and symptom_item['part_code'] is not None:
+                    if stored_data['part_code'] != symptom_item['part_code']:
+                        print(f'증상: {dialog_param["SYMPTOM_NAME"]} X->X {symptom_item["symptom_name"]} ({symptom_item["part_code"]} - {symptom_item["symptom_code"]})')
+                    else:
+                        stored_data['symptom_code'].append(symptom_item['symptom_code'])
+                        symptom_parts.append(symptom_item['part_code'])
+                        print(f'증상: {dialog_param["SYMPTOM_NAME"]} -> {symptom_item["symptom_name"]} ({symptom_item["part_code"]} - {symptom_item["symptom_code"]})')
 
-        if stored_data['part_code'] is None:  # 부위 정보가 없는 경우 질의
+        # 모든 증상들이 한 개의 부위에만 해당하는 경우 부위 특정
+        if len(symptom_parts) == 1:
+            part_item = get_part(self.part_data, symptom_parts[0])
+            if part_item is not None:
+                stored_data['part_code'] = part_item['part_code']
+                stored_data['part_name'] = part_item['part_name']
+
+        # 부위 정보가 없는 경우 질의
+        if stored_data['part_code'] is None:
             stored_data['message'] = '어디가 불편하신가요?'
-
-        elif len(stored_data['symptom_code']) == 0:  # 증상 정보가 없는 경우 질의
+        # 증상 정보가 없는 경우 질의
+        elif len(stored_data['symptom_code']) == 0:
             stored_data['message'] = f'{stored_data["part_name"]}이(가) 어떻게 아프신가요?'
-
         else:
             # 질병 후보군
             disease_result = get_disease(self.disease_data, stored_data)
-            print(disease_result)
+            #print(disease_result)
 
             # 진료과 후보군
             departments = []
@@ -135,6 +149,7 @@ class PostDialogue(Resource):
             print(department_weights)
 
             if len(departments) == 1:
+                print(f'진료과: {dept_code_dict[departments[0]]}')
                 try:
                     info = hospital.get_hospital_by_location(self.__lat, self.__lon, departments[0], 1)
                     hospital_info = {'hospital_info': info["items"][0]}
