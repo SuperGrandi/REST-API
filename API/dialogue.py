@@ -92,8 +92,8 @@ class PostDialogue(Resource):
 
         else:
             # 질병 후보군
-            print(stored_data)
             disease_result = get_disease(self.disease_data, stored_data)
+            print(disease_result)
 
             # 진료과 후보군
             departments = []
@@ -129,7 +129,6 @@ class PostDialogue(Resource):
             if department_per > DEPARTMENT_WEIGHT:
                 departments = [most_department]
 
-            print(departments)
             print(department_weights)
 
             if len(departments) == 1:
