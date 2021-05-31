@@ -9,6 +9,8 @@ from database import Database
 import requests
 import ast
 
+DEPARTMENT_WEIGHT = 0.7
+
 Dialogue = Namespace('dialogue', description='대화를 통한 진료과 도출')
 
 response_model_dialogue = Dialogue.model('Dialogue Model', {
@@ -90,6 +92,7 @@ class PostDialogue(Resource):
 
         else:
             # 질병 후보군
+            print(stored_data)
             disease_result = get_disease(self.disease_data, stored_data)
 
             # 진료과 후보군
@@ -123,7 +126,7 @@ class PostDialogue(Resource):
             # 가장 가능성 높은 진료과 추정
             most_department = max(department_weights, key=department_weights.get)
             department_per = department_weights[most_department] / sum_department_weights
-            if department_per > 0.8:
+            if department_per > DEPARTMENT_WEIGHT:
                 departments = [most_department]
 
             print(departments)
@@ -159,6 +162,7 @@ class PostDialogue(Resource):
             stored_data['excepted_symptoms'].append(stored_data['excepted_symptoms'])
         else:
             stored_data['pre_message'] = '이해하지 못했어요.'
+
         return self.query_by_part_symptom(dialog_param, stored_data)
 
     def emergency_query(self, stored_data):
@@ -237,12 +241,19 @@ class PostDialogue(Resource):
         if 'SYMPTOM_NAME' not in dialog_param:
             dialog_param['SYMPTOM_NAME'] = ''
 
+
+        # 증상 확인 절차 초기화
+        if len(stored_data['asked_symptom']) > 0 and stored_data['asked_symptom'] in stored_data['symptom_code'] + stored_data['excepted_symptoms']:
+            stored_data['asked_symptom'] = ''
+            stored_data['pre_message'] = ''
+
         # 부위 질의 or 증상 질의
         if dialog_intent == '부위 질의' or dialog_intent == '증상 질의':
             stored_data, hospital_info = self.query_by_part_symptom(dialog_param, stored_data)
         # 증상 확인
-        elif dialog_intent == '증상 확인':
-            stored_data = self.answer_symptom(dialog_param, stored_data)
+        elif dialog_intent == '증상 확인' and len(stored_data['asked_symptom']) > 0:
+            print(stored_data)
+            stored_data, hospital_info = self.answer_symptom(dialog_param, stored_data)
         # 응급실 질의
         elif dialog_intent == '응급실 질의':
             stored_data, hospital_info = self.emergency_query(stored_data)
@@ -252,10 +263,6 @@ class PostDialogue(Resource):
         # 기타 스몰토크
         else:
             stored_data = self.etc_intents(dialog_data, stored_data)
-        
-        # 증상 확인 절차 초기화
-        stored_data['asked_symptom'] = ''
-        stored_data['pre_message'] = ''
 
         ret_json = {
             "session_id": self.session_id,
@@ -307,10 +314,10 @@ def generate_session_id():
 
 def insert_dialogue(data):
     sql = 'INSERT INTO Dialogue \
-        (session_id, message, part_code, part_name, symptom_code) \
-        VALUES (%s, %s, %s, %s, %s)'
+        (session_id, pre_message, message, part_code, part_name, asked_symptom, symptom_code, excepted_symptoms) \
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)'
     coco_db.execute(sql, (
-    data['session_id'], data['message'], data['part_code'], data['part_name'], str(data['symptom_code'])))
+    data['session_id'], data['pre_message'], data['message'], data['part_code'], data['part_name'], data['asked_symptom'], str(data['symptom_code']), str(data['excepted_symptoms'])))
     coco_db.commit()
 
 
