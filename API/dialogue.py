@@ -317,9 +317,12 @@ def generate_session_id():
 
 
 def insert_dialogue(data):
-    sql = 'INSERT INTO Dialogue \
-        (session_id, pre_message, message, part_code, part_name, asked_symptom, symptom_code, excepted_symptoms) \
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)'
+    sql = """
+        INSERT INTO Dialogue
+        (session_id, pre_message, message, part_code, part_name, asked_symptom, symptom_code, excepted_symptoms)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """
+
     coco_db.execute(sql, (
     data['session_id'], data['pre_message'], data['message'], data['part_code'], data['part_name'], data['asked_symptom'], str(data['symptom_code']), str(data['excepted_symptoms'])))
     coco_db.commit()
