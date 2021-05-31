@@ -1,11 +1,8 @@
 import operator
-import sys
 
 from database import Database
 
 db = Database()
-
-
 
 sql = """
     SELECT *
@@ -20,7 +17,6 @@ sql = """
 """
 db.execute(sql)
 db.commit()
-
 
 sql = """
     SELECT * 
@@ -38,17 +34,17 @@ for row in disease_table:
             continue
         part_code[code][row['part_code']] += 1
 
-
-
-
 for symptom_code, count in part_code.items():
     print(symptom_code)
     sum_count = sum(count.values())
     if sum_count == 0:
         continue
     sort_item = dict(sorted(count.items(), key=operator.itemgetter(1), reverse=True))
+
     # 50% 이상만
-    filted_list = dict(filter(lambda x: x[1]/sum_count >= 0.5, sort_item.items()))
+    WEIGHT = 0.5
+
+    filted_list = dict(filter(lambda x: x[1] / sum_count >= WEIGHT, sort_item.items()))
 
     sql = """
     UPDATE Symptom 
@@ -59,8 +55,3 @@ for symptom_code, count in part_code.items():
     if filted_list:
         db.execute(sql, (list(filted_list)[0], symptom_code))
         db.commit()
-
-
-
-
-
