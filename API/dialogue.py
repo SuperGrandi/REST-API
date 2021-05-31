@@ -79,9 +79,12 @@ class PostDialogue(Resource):
         # 증상 목록
         if len(dialog_param['SYMPTOM_NAME']) > 0:
             print(f'증상: {dialog_param["SYMPTOM_NAME"]}')
-            for symptom_item in self.symptom_data:
-                if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] and symptom_item['symptom_code'] not in \
-                        stored_data['symptom_code']:
+            target_symptoms = filter(lambda x: x['symptom_code'] not in stored_data['symptom_code'], self.symptom_data)
+            for symptom_item in list(target_symptoms):
+                # 대화에서 도출한 증상명과 일치하는 증상인 경우
+                # 혹은 대화에서 도출한 증상명을 동의어로 가지는 증상인 경우
+                if dialog_param['SYMPTOM_NAME'] == symptom_item['symptom_name'] \
+                    or dialog_param['SYMPTOM_NAME'] in symptom_item['synonym']:
                     stored_data['symptom_code'].append(symptom_item['symptom_code'])
 
         if stored_data['part_code'] is None:  # 부위 정보가 없는 경우 질의
@@ -288,6 +291,8 @@ def load_data():
     # Symptom
     sql = 'SELECT * FROM Symptom'
     symptom_data = coco_db.executeAll(sql)
+    for symptom_item in symptom_data:
+        symptom_item['synonym'] = symptom_item['synonym'].split(',')
 
     # Disease
     sql = 'SELECT * FROM Disease'
