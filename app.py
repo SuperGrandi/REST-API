@@ -27,8 +27,4 @@ api.add_namespace(SendMessage, '/sendMessage')
 api.add_namespace(Dialogue, '/dialogue')
 
 if __name__ == '__main__':
-<<<<<<< HEAD
     app.run(host="0.0.0.0", port=5000, debug=True)
-=======
-    app.run(host="0.0.0.0", port=5000, debug=True)
->>>>>>> 4be57a80cf2dd146f987e01d50653f5c68f56e78
