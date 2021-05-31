@@ -6,7 +6,6 @@ from API.dialogue import Dialogue
 from API.hospital import Hospital
 from API.sendMessage import SendMessage
 
-
 app = Flask(__name__)
 app.config['CORS_HEADERS'] = 'Content-Type'
 app.config['JSON_AS_ASCII'] = False
@@ -14,7 +13,6 @@ app.config['JSON_AS_ASCII'] = False
 # set timezone Seoul
 os.environ['TZ'] = 'Asia/Seoul'
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = './coco-huic-eb709454549b.json'
-
 
 app = Flask(__name__)
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -29,4 +27,8 @@ api.add_namespace(SendMessage, '/sendMessage')
 api.add_namespace(Dialogue, '/dialogue')
 
 if __name__ == '__main__':
+<<<<<<< HEAD
     app.run(host="0.0.0.0", port=5000, debug=True)
+=======
+    app.run(host="0.0.0.0", port=5000, debug=True)
+>>>>>>> 4be57a80cf2dd146f987e01d50653f5c68f56e78
