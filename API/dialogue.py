@@ -143,7 +143,8 @@ class PostDialogue(Resource):
             # 가장 가능성 높은 진료과 추정
             most_department = max(department_weights, key=department_weights.get)
             department_per = department_weights[most_department] / sum_department_weights
-            if department_per > DEPARTMENT_WEIGHT:
+            print([department_per, DEPARTMENT_WEIGHT - (stored_data['step'] - 1) * 0.1])
+            if department_per > DEPARTMENT_WEIGHT - (stored_data['step'] - 1) * 0.1:
                 departments = [most_department]
             # 가능성 높은 진료과가 모든 후보 질병에 해당하는 진료과인지 확인
             else:
@@ -204,6 +205,8 @@ class PostDialogue(Resource):
 
         stored_data = {
             "session_id": self.session_id,
+            "step": stored_data['step'],
+            "query": self.message,
             "pre_message": "",
             "message": message,
             "part_code": None,
@@ -217,6 +220,8 @@ class PostDialogue(Resource):
     def emergency_call(self, stored_data):
         stored_data = {
             "session_id": self.session_id,
+            "step": stored_data['step'],
+            "query": self.message,
             "pre_message": "",
             "message": "119에 전화할게요!",
             "part_code": None,
@@ -253,6 +258,8 @@ class PostDialogue(Resource):
         if coco_db.getCursor().rowcount == 0:
             ret_json = stored_data = {
                 'session_id': self.session_id,
+                'step': 1,
+                'query': self.message,
                 'pre_message': '',
                 'message': '',
                 'part_code': None,
@@ -262,6 +269,7 @@ class PostDialogue(Resource):
                 'excepted_symptoms': [],
             }
         else:
+            stored_data['step'] = stored_data['step'] + 1
             stored_data['symptom_code'] = ast.literal_eval(stored_data['symptom_code'])
             stored_data['excepted_symptoms'] = ast.literal_eval(stored_data['excepted_symptoms'])
             ret_json = stored_data
@@ -305,6 +313,8 @@ class PostDialogue(Resource):
 
         ret_json = {
             "session_id": self.session_id,
+            "step": stored_data['step'],
+            "query": self.message,
             "pre_message": stored_data['pre_message'],
             "message": stored_data['message'],
             "part_code": stored_data['part_code'],
@@ -356,12 +366,12 @@ def generate_session_id():
 def insert_dialogue(data):
     sql = """
         INSERT INTO Dialogue
-        (session_id, message, part_code, part_name, asked_symptom, symptom_code, excepted_symptoms)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        (session_id, step, query, message, part_code, part_name, asked_symptom, symptom_code, excepted_symptoms)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     coco_db.execute(sql, (
-    data['session_id'], data['message'], data['part_code'], data['part_name'], data['asked_symptom'], str(data['symptom_code']), str(data['excepted_symptoms'])))
+    data['session_id'], data["step"], data["query"], data['message'], data['part_code'], data['part_name'], data['asked_symptom'], str(data['symptom_code']), str(data['excepted_symptoms'])))
     coco_db.commit()
 
 
@@ -382,14 +392,14 @@ def get_symptom(symptom_data, symptom_code):
 def get_disease(disease_data, inputed_data):
     disease_result = []
     for disease_item in disease_data:
-        symptom_matched = True
+        symptom_matched = False
 
         if inputed_data['part_code'] != disease_item['part_code']:
             continue  # 부위가 다르면 다음 질병 조회
 
         for inputed_symptom in inputed_data['symptom_code']:
-            if inputed_symptom not in disease_item['symptom_code']:
-                symptom_matched = False
+            if inputed_symptom in disease_item['symptom_code']:
+                symptom_matched = True
                 break  # 다음 질병 조회
 
         if symptom_matched == True:
