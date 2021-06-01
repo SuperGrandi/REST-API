@@ -340,6 +340,10 @@ def load_data():
     symptom_data = coco_db.executeAll(sql)
     for symptom_item in symptom_data:
         symptom_item['synonym'] = symptom_item['synonym'].split(',')
+        for synonym_item in symptom_item['synonym']:
+            if '-' in synonym_item:
+                symptom_item['target'], synonym_temp = synonym_item.split('-')
+                symptom_item['synonym'].append(synonym_temp)
 
     # Disease
     sql = 'SELECT * FROM Disease'
