@@ -9,7 +9,7 @@ from database import Database
 import requests
 import ast
 
-DEPARTMENT_WEIGHT = 0.7
+DEPARTMENT_WEIGHT = 0.5
 
 Dialogue = Namespace('dialogue', description='대화를 통한 진료과 도출')
 
@@ -79,7 +79,7 @@ class PostDialogue(Resource):
         # 증상 목록
         symptom_parts = []
         if len(dialog_param['SYMPTOM_NAME']) > 0:
-            target_symptoms = filter(lambda x: x['symptom_code'] not in stored_data['symptom_code'], self.symptom_data)
+            target_symptoms = filter(lambda x: x['symptom_code'] not in stored_data['symptom_code'] + stored_data['excepted_symptoms'], self.symptom_data)
             for symptom_item in list(target_symptoms):
                 # 대화에서 도출한 증상명과 일치하는 증상인 경우
                 # 혹은 대화에서 도출한 증상명을 동의어로 가지는 증상인 경우
@@ -130,7 +130,7 @@ class PostDialogue(Resource):
             symptom_weights = {}
             for disease_item in disease_result:
                 for symptom_code in disease_item['symptom_code']:
-                    if symptom_code not in stored_data['symptom_code'] and symptom_code not in stored_data['excepted_symptoms']:
+                    if symptom_code not in stored_data['symptom_code'] + stored_data['excepted_symptoms']:
                         if symptom_code not in symptom_weights:
                             symptom_weights[symptom_code] = 0
                         symptom_weights[symptom_code] += 1
@@ -145,10 +145,19 @@ class PostDialogue(Resource):
             department_per = department_weights[most_department] / sum_department_weights
             if department_per > DEPARTMENT_WEIGHT:
                 departments = [most_department]
+            # 가능성 높은 진료과가 모든 후보 질병에 해당하는 진료과인지 확인
+            else:
+                dept_cnt = 0
+                for disease_item in disease_result:
+                    if most_department in disease_item['medical_dept']:
+                        dept_cnt += 1
+                # 모든 후보 질병에 해당하는 경우 더 추론하지 않아도 됨
+                if dept_cnt == len(disease_result):
+                    departments = [most_department]
 
             print(department_weights)
 
-            if len(departments) == 1:
+            if len(departments) == 1 or len(disease_result) == 1:
                 print(f'진료과: {dept_code_dict[departments[0]]}')
                 try:
                     info = hospital.get_hospital_by_location(self.__lat, self.__lon, departments[0], 1)
@@ -177,7 +186,7 @@ class PostDialogue(Resource):
         if len(answer_yes) > 0:
             stored_data['symptom_code'].append(stored_data['asked_symptom'])
         elif len(answer_no) > 0:
-            stored_data['excepted_symptoms'].append(stored_data['excepted_symptoms'])
+            stored_data['excepted_symptoms'].append(stored_data['asked_symptom'])
         else:
             stored_data['pre_message'] = '이해하지 못했어요.'
 
@@ -352,7 +361,7 @@ def insert_dialogue(data):
     """
 
     coco_db.execute(sql, (
-    data['session_id'], data['pre_message'], data['message'], data['part_code'], data['part_name'], data['asked_symptom'], str(data['symptom_code']), str(data['excepted_symptoms'])))
+    data['session_id'], data['message'], data['part_code'], data['part_name'], data['asked_symptom'], str(data['symptom_code']), str(data['excepted_symptoms'])))
     coco_db.commit()
 
 
