@@ -171,11 +171,12 @@ class PostDialogue(Resource):
         return stored_data, hospital_info
 
     def answer_symptom(self, dialog_param, stored_data):
-        answer = dialog_param['ANSWER_YESNO']
+        answer_yes = dialog_param['ANSWER_YES']
+        answer_no = dialog_param['ANSWER_NO']
 
-        if answer == 'Yes':
+        if len(answer_yes) > 0:
             stored_data['symptom_code'].append(stored_data['asked_symptom'])
-        elif answer == 'No':
+        elif len(answer_no) > 0:
             stored_data['excepted_symptoms'].append(stored_data['excepted_symptoms'])
         else:
             stored_data['pre_message'] = '이해하지 못했어요.'
@@ -217,10 +218,19 @@ class PostDialogue(Resource):
 
         }
         return stored_data
+    
+    def fallback(self, dialog_param, stored_data):
+        stored_data['pre_message'] = '이해하지 못했어요.'
+        return self.query_by_part_symptom(dialog_param, stored_data)
 
     def etc_intents(self, dialog_data, stored_data):
         stored_data['message'] = dialog_data['message']
         return stored_data
+
+    def user_query(self, query):
+        project_id = 'coco-huic'
+        response = detect_intent_texts(project_id, self.session_id, query, 'ko')
+        return response
 
     @Dialogue.expect(model_dialogue)
     def post(self):
@@ -247,7 +257,7 @@ class PostDialogue(Resource):
             stored_data['excepted_symptoms'] = ast.literal_eval(stored_data['excepted_symptoms'])
             ret_json = stored_data
 
-        dialog_data = user_query(self.message)
+        dialog_data = self.user_query(self.message)
         print(dialog_data)
 
 
@@ -277,6 +287,9 @@ class PostDialogue(Resource):
         # 응급실 호출
         elif dialog_intent == '응급실 호출':
             stored_data = self.emergency_call(stored_data)
+        # Fallback
+        elif dialog_intent == 'Fallback':
+            stored_data, hospital_info = self.fallback(dialog_param, stored_data)
         # 기타 스몰토크
         else:
             stored_data = self.etc_intents(dialog_data, stored_data)
@@ -334,8 +347,8 @@ def generate_session_id():
 def insert_dialogue(data):
     sql = """
         INSERT INTO Dialogue
-        (session_id, pre_message, message, part_code, part_name, asked_symptom, symptom_code, excepted_symptoms)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        (session_id, message, part_code, part_name, asked_symptom, symptom_code, excepted_symptoms)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
     """
 
     coco_db.execute(sql, (
@@ -374,8 +387,3 @@ def get_disease(disease_data, inputed_data):
             disease_result.append(disease_item)
     return disease_result
 
-
-def user_query(query):
-    project_id = 'coco-huic'
-    response = detect_intent_texts(project_id, "test", query, 'ko')
-    return response
