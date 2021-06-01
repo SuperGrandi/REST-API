@@ -171,7 +171,7 @@ class PostDialogue(Resource):
                 stored_data['message'] = '진료과를 찾지 못했습니다.'
             elif most_symptom is not None:
                 stored_data['asked_symptom'] = most_symptom
-                stored_data['message'] = f'{most_symptom_name} 증상이 있지는 않으신가요?'
+                stored_data['message'] = f'{most_symptom_name} 증상이 있으신가요?'
             else:
                 stored_data['message'] = '조금 더 자세히 말씀해 주세요.'
         
