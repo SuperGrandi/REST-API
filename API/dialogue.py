@@ -9,7 +9,7 @@ from database import Database
 import requests
 import ast
 
-DEPARTMENT_WEIGHT = 0.5
+DEPARTMENT_WEIGHT = 0.7
 
 Dialogue = Namespace('dialogue', description='대화를 통한 진료과 도출')
 
